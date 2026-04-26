@@ -23,7 +23,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ffuf
 
-      - name: Wait for Juice Shop to be ready
+      - name: Juice Shop up
         run: |
           until curl -s http://localhost:3000 > /dev/null; do
             echo "Waiting for Juice Shop..."
@@ -37,6 +37,11 @@ jobs:
                -X POST \
                -d '{"email": "FUZZ", "password": "password123"}' \
                -H "Content-Type: application/json" \
-               -t 5 \
-               -noninteractive \
-               -fc 401
+               -o results.json -of json
+
+      - name: Scan Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzzer-report
+          path: results.json
+
