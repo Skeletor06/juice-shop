@@ -1,0 +1,49 @@
+name: SQLi Fuzzing with ffuf
+
+on:
+  workflow_dispatch: # Позволяет запускать вручную
+
+jobs:
+  fuzzing:
+    runs-on: ubuntu-latest
+
+    services:
+      # Запускаем Juice Shop в фоне
+      juice-shop:
+        image: bkimminich/juice-shop
+        ports:
+          - 3000:3000
+
+    steps:
+      - name: Install ffuf
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffuf
+
+      - name: Download SQLi Payloads
+        run: |
+          curl -L -o sqli.txt https://githubusercontent.com
+
+      - name: Wait for Juice Shop to be ready
+        run: |
+          until curl -s http://localhost:3000 > /dev/null; do
+            echo "Waiting for Juice Shop..."
+            sleep 5
+          done
+
+      - name: Run ffuf to find SQLi in Login
+        run: |
+          # Juice Shop принимает JSON в форме логина. 
+          # Мы фазим поле email, ожидая изменения в ответе (например, 200 OK вместо 401).
+          # -u: URL цели
+          # -X: Метод POST
+          # -d: Данные (FUZZ — место вставки нагрузки)
+          # -H: Заголовок Content-Type для JSON
+          # -mr: Фильтр по содержимому (ищем успешный вход или специфичную ошибку)
+          
+          ffuf -w sqli.txt \
+               -u http://localhost:3000/rest/user/login \
+               -X POST \
+               -d '{"email": "FUZZ", "password": "password123"}' \
+               -H "Content-Type: application/json" \
+               -mc 200,500 -v
