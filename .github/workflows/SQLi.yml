@@ -1,38 +1,27 @@
 name: SQLi Fuzzing with ffuf
 
 on:
-  workflow_dispatch: # Позволяет запускать вручную
+  workflow_dispatch:
 
 jobs:
   fuzzing:
     runs-on: ubuntu-latest
 
     services:
-      # Запускаем Juice Shop в фоне
       juice-shop:
         image: bkimminich/juice-shop
         ports:
           - 3000:3000
 
     steps:
+      # ВАЖНО: Этот шаг скачивает ваш код (и файл payloads.txt) на сервер GitHub
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Install ffuf
         run: |
           sudo apt-get update
           sudo apt-get install -y ffuf
-
-      - name: Download SQLi Payloads
-        run: |
-          # Используем проверенную прямую ссылку и добавляем флаг -f, чтобы шаг упал, если файл не скачается
-          curl -fL -o sqli.txt "https://githubusercontent.com"
-          
-          # Проверяем, что файл не пустой, чтобы ffuf не выдал ошибку
-          if [ -s sqli.txt ]; then
-            echo "Payloads downloaded successfully"
-            head -n 5 sqli.txt
-          else
-            echo "Payload file is empty!"
-            exit 1
-          fi
 
       - name: Wait for Juice Shop to be ready
         run: |
@@ -41,12 +30,14 @@ jobs:
             sleep 5
           done
 
-      - name: Run ffuf to find SQLi in Login
+      - name: Run ffuf using local payloads.txt
         run: |
-          # Добавляем -s (silent), чтобы не спамить в логи, и -fc 401, чтобы скрыть неудачные попытки входа
-          ffuf -w sqli.txt \
+          # Теперь указываем путь к локальному файлу -w payloads.txt
+          # -fc 401 скрывает ошибки (Unauthorized)
+          # -mc 200 показывает успешные входы (уязвимости)
+          ffuf -w payloads.txt \
                -u http://localhost:3000/rest/user/login \
                -X POST \
                -d '{"email": "FUZZ", "password": "password123"}' \
                -H "Content-Type: application/json" \
-               -fc 401 -mc 200,500
+               -fc 401 -mc 200,500 -v
