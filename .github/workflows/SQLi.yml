@@ -30,14 +30,13 @@ jobs:
             sleep 5
           done
 
-      - name: Run ffuf using local payloads.txt
+      - name: Run ffuf
         run: |
-          # Теперь указываем путь к локальному файлу -w payloads.txt
-          # -fc 401 скрывает ошибки (Unauthorized)
-          # -mc 200 показывает успешные входы (уязвимости)
           ffuf -w payloads.txt \
                -u http://localhost:3000/rest/user/login \
                -X POST \
                -d '{"email": "FUZZ", "password": "password123"}' \
                -H "Content-Type: application/json" \
-               -fc 401 -mc 200,500 -v
+               -t 5 \
+               -noninteractive \
+               -fc 401
