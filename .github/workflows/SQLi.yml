@@ -22,7 +22,17 @@ jobs:
 
       - name: Download SQLi Payloads
         run: |
-          curl -L -o sqli.txt https://githubusercontent.com
+          # Используем проверенную прямую ссылку и добавляем флаг -f, чтобы шаг упал, если файл не скачается
+          curl -fL -o sqli.txt "https://githubusercontent.com"
+          
+          # Проверяем, что файл не пустой, чтобы ffuf не выдал ошибку
+          if [ -s sqli.txt ]; then
+            echo "Payloads downloaded successfully"
+            head -n 5 sqli.txt
+          else
+            echo "Payload file is empty!"
+            exit 1
+          fi
 
       - name: Wait for Juice Shop to be ready
         run: |
@@ -33,17 +43,10 @@ jobs:
 
       - name: Run ffuf to find SQLi in Login
         run: |
-          # Juice Shop принимает JSON в форме логина. 
-          # Мы фазим поле email, ожидая изменения в ответе (например, 200 OK вместо 401).
-          # -u: URL цели
-          # -X: Метод POST
-          # -d: Данные (FUZZ — место вставки нагрузки)
-          # -H: Заголовок Content-Type для JSON
-          # -mr: Фильтр по содержимому (ищем успешный вход или специфичную ошибку)
-          
+          # Добавляем -s (silent), чтобы не спамить в логи, и -fc 401, чтобы скрыть неудачные попытки входа
           ffuf -w sqli.txt \
                -u http://localhost:3000/rest/user/login \
                -X POST \
                -d '{"email": "FUZZ", "password": "password123"}' \
                -H "Content-Type: application/json" \
-               -mc 200,500 -v
+               -fc 401 -mc 200,500
